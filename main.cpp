@@ -2,10 +2,23 @@
 #include <fstream>
 #include <vector>
 #include <queue>
+#include <algorithm>
 
 using namespace std;
 
-int shortestPathBinaryMatrix(vector<vector<int>> &grid)
+struct spaceIndex
+{
+  int x, y;
+  spaceIndex(int a = -1, int b = -1) : x(a), y(b) {}
+};
+
+struct nodesRelation
+{
+  spaceIndex current;
+  spaceIndex parent;
+};
+
+int shortestPathBinaryMatrix(vector<vector<int>> &grid, vector<spaceIndex> &path)
 {
   int n = grid.size();
   if (grid[0][0] != 0 || grid[n - 1][n - 1] != 0)
@@ -13,20 +26,16 @@ int shortestPathBinaryMatrix(vector<vector<int>> &grid)
     return -1;
   }
 
-  struct spaceIndex
-  {
-    int x;
-    int y;
-
-    spaceIndex(int xval, int yval) : x(xval), y(yval) {};
-  };
-
   int directionRows[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
   int directionColumns[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
 
+  vector<nodesRelation> nodes;
   queue<spaceIndex> q;
-  q.push(spaceIndex(0, 0));
+  spaceIndex start(0, 0);
+  spaceIndex end(-1, -1);
+  q.push(start);
   grid[0][0] = 1;
+  nodes.push_back({start, end});
 
   while (!q.empty())
   {
@@ -36,7 +45,8 @@ int shortestPathBinaryMatrix(vector<vector<int>> &grid)
     int pathLen = grid[s.x][s.y];
     if (s.x == n - 1 && s.y == n - 1)
     {
-      return pathLen;
+      end = s;
+      break;
     }
 
     for (int k = 0; k < 8; k++)
@@ -45,12 +55,32 @@ int shortestPathBinaryMatrix(vector<vector<int>> &grid)
       int newCol = s.y + directionColumns[k];
       if (newRow >= 0 && newRow < n && newCol >= 0 && newCol < n && grid[newRow][newCol] == 0)
       {
+        spaceIndex newSpaceIndex = spaceIndex(newRow, newCol);
         q.push(spaceIndex(newRow, newCol));
         grid[newRow][newCol] = pathLen + 1;
+        nodes.push_back({newSpaceIndex, s});
       }
     }
   }
-  return -1;
+  if (end.x == -1)
+    return -1;
+
+  nodesRelation cur = nodes.back();
+  while (cur.parent.x != -1)
+  {
+    path.push_back(cur.current);
+    for (auto &v : nodes)
+    {
+      if (v.current.x == cur.parent.x && v.current.y == cur.parent.y)
+      {
+        cur = v;
+        break;
+      }
+    }
+  }
+  path.push_back(spaceIndex(0, 0));
+  reverse(path.begin(), path.end());
+  return grid[n - 1][n - 1];
 };
 
 void printGrid(int size, vector<vector<int>> &grid)
@@ -94,17 +124,19 @@ bool readFile(string fileName, int &size, vector<vector<int>> &grid)
 int main()
 {
   string fileName;
-
-  while (fileName != "end")
+  while (fileName != "END")
   {
     cout << "Enter File Name: ";
     cin >> fileName;
+
+    if(fileName=="END"){
+      break;
+    }
 
     int size;
     vector<vector<int>> grid;
 
     bool isReadFile = readFile(fileName, size, grid);
-
     if (isReadFile)
     {
       cout << endl
@@ -112,7 +144,8 @@ int main()
            << endl;
       printGrid(size, grid);
 
-      int pathLength = shortestPathBinaryMatrix(grid);
+      vector<spaceIndex> path;
+      int pathLength = shortestPathBinaryMatrix(grid, path);
       if (pathLength == -1)
       {
         cout << "Solution does not exist \n"
@@ -121,9 +154,15 @@ int main()
       else
       {
         cout << endl
-             << "Solution" << endl;
+             << "Solution : Path Length = " << pathLength << endl;
         printGrid(size, grid);
         cout << endl;
+        cout << "Shortest path:" << endl;
+        for (auto &p : path)
+        {
+          cout << "(" << p.x << "," << p.y << ") ";
+          cout << endl;
+        }
         cout << "==========================\n\n";
       }
     }
